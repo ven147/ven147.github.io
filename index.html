@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en-US">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Classical 2 Experiment</title>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.8.8/pixi.min.js"></script>
+		<script src="https://pixijs.download/release/pixi.js"></script>
+	</head>
+	<style>
+		img {
+			width: 75px;
+			height: 75px;
+		}
+		p {
+			font-size: 15px;
+			font-family: Verdana;
+			font-weight: normal;
+		}
+	</style>
+	<body>
+		<h1>Classical 2 Test</2>
+		<br>
+		<button id="start_button" onclick="start()">Start</button>
+		<p> Rudimentary top-down test for the horizontal+vertical flip in Classical 2. <br>
+			After the "The Classical Concepts" cast, your starting position appears as a green circle. <br>
+			You can move your character with the mouse. <br>
+			You have until the end of the Panta Rhei cast in order to find the correct spot. </p>
+		<!-- <p id="timer">Time:</p> -->
+		<div id="view"></div>
+
+		
+		<!-- <div id="grid">
+		
+			<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Square_-_black_simple.svg"> 
+			<button type="button">O</button>
+			<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Square_-_black_simple.svg">
+			<button type="button">O</button>
+			<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Square_-_black_simple.svg">
+			<button type="button">O</button>
+			<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Square_-_black_simple.svg">
+			<br>
+			&ensp;
+			<button type="button">O</button>&emsp; &emsp; 
+			<button type="button">O</button>&emsp; &emsp; 
+			<button type="button">O</button>&emsp; &emsp; 
+			<button type="button">O</button>
+			<br>
+			<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Square_-_black_simple.svg">
+			<button type="button">O</button>
+			<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Square_-_black_simple.svg">
+			<button type="button">O</button>
+			<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Square_-_black_simple.svg">
+			<button type="button">O</button>
+			<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Square_-_black_simple.svg">
+			<br>
+			&ensp;
+			<button type="button">O</button>&emsp; &emsp; 
+			<button type="button">O</button>&emsp; &emsp; 
+			<button type="button">O</button>&emsp; &emsp; 
+			<button type="button">O</button>
+			<br>
+			<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Square_-_black_simple.svg">
+			<button type="button">O</button>
+			<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Square_-_black_simple.svg">
+			<button type="button">O</button>
+			<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Square_-_black_simple.svg">
+			<button type="button">O</button>
+			<img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/Square_-_black_simple.svg">
+		</div> -->
+		
+		<script type="text/javascript">
+		
+			var inRound = false;
+			var startTime;
+			var offset = 100;
+			var phase = 'c';
+			var movementActive = false;
+			var moving = false;
+		
+			/* --- INIT --- */
+			var app = new PIXI.Application({width: 800, height: 800});
+			document.getElementById("view").appendChild(app.view);
+			var container = new PIXI.Container();
+			app.stage.addChild(container);
+			//var renderer = PIXI.autoDetectRenderer(800,1000);
+			//document.getElementById("view").appendChild(renderer.view);
+			
+			var elements = {};
+			var texturePlayer = PIXI.Texture.from("player2.png");
+			var textureButton_Retry = PIXI.Texture.from("retry_button.png");
+			
+			var randStartingPos = 0;
+			
+			// arena setup 
+			elements.arena = new PIXI.Container();
+			elements.arena.x = 0;
+			elements.arena.y = 0 + offset;
+			container.addChild(elements.arena);
+			
+			elements.background = PIXI.Sprite.from('arena4.jpg');
+			elements.background.x = 0;
+			elements.background.y = 0;
+			elements.arena.addChild(elements.background);
+			
+			//player setup
+			
+			// castbar + text setup
+			elements.castBar = new PIXI.Container();
+			elements.castBarOuter = new PIXI.Graphics();
+			container.addChild(elements.castBarOuter);
+			elements.castBarInner = new PIXI.Graphics();
+			elements.castBar.addChild(elements.castBarInner);
+			container.addChild(elements.castBar);
+			
+			var castTextStyle = new PIXI.TextStyle({fill: '#ffffff'});
+			elements.castText = new PIXI.Text('The Classical Concepts', castTextStyle);
+			elements.castText.x = 10;
+			elements.castText.y = 50;
+			container.addChild(elements.castText);
+			elements.castText.visible = false;
+				
+			/* DRAWS ITEMS -- FUNCTIONS */
+			function drawShapes() {
+			
+				elements.shape = new PIXI.Graphics();
+				elements.shape.beginFill(0xff0000);
+				var x = 160;
+				var y = 160;
+				for (let i = 1; i < 5; i++) {
+					for (let j = 0; j < 3; j++) {
+						elements.shape.drawCircle(x*i, y*j + 100, 50);
+					}
+				}
+				elements.arena.addChild(elements.shape);
+			}
+			drawShapes();
+			
+			var possibleStartPositions = 
+				[	[240,100], [400,100], [560,100],
+					[160,180], [320,180], [480,180], [640,180], 
+					[240,260], [400,260], [560,260],
+					[160,340], [320,340], [480,340], [640,340], 
+					[240,420], [400,420], [560,420] 	];
+			
+			var columns = 	[ [0, 240], [160, 320], [240, 400], [320, 480], [400, 560], [480, 640], [560, 800] ];
+			var rows = 		[ [0, 180], [100, 260], [180, 340], [260, 420], [340, 550]];
+			var safeRange = [0, 0]; // indices of safe column + safe row from columns+rows arrays
+			
+			function drawStartingPos() {
+				movementActive = true;
+				elements.player = new PIXI.Sprite(texturePlayer);
+				elements.player.anchor.x = 0.5;
+				elements.player.anchor.y = 0.5;
+				elements.player.position.x = 240;
+				elements.player.position.y = 160;
+				randStartingPos = rand(0,16);
+				
+				var startX = possibleStartPositions[randStartingPos][0];
+				var startY = possibleStartPositions[randStartingPos][1];
+				
+				//check click x vs start x and start x's safe range
+				switch(startX) {
+					case 160:
+						safeRange[0] = 6;
+						break;
+					case 240: 
+						safeRange[0] = 5;
+						break;
+					case 320:
+						safeRange[0] = 4;
+						break;
+					case 400:
+						safeRange[0] = 3;
+						break;
+					case 480:
+						safeRange[0] = 2;
+						break;
+					case 560:
+						safeRange[0] = 1;
+						break;
+					case 640:
+						safeRange[0] = 0;
+						break;
+					default:
+						break;
+				}
+				//console.log('startX = ' + startX + ', safeRange X = ' + safeRange[0]);
+				//console.log('startY = ' + startY + ', safeRange Y = ' + safeRange[1]);
+				
+				//check click y vs start y and start y's safe range
+				switch(startY) {
+					case 100:
+						safeRange[1] = 4;
+						break;
+					case 180:
+						safeRange[1] = 3;
+						break;
+					case 260:
+						safeRange[1] = 2;
+						break;
+					case 340:
+						safeRange[1] = 1;
+						break;
+					case 420:
+						safeRange[1] = 0;
+						break;
+					default:
+						break;
+				}
+					
+				elements.player.position.x = startX;
+				elements.player.position.y = startY;
+				elements.arena.addChild(elements.player);
+				
+			}
+			
+			function drawCastBar() {
+				elements.castBar.x = 5;
+				elements.castBar.y = 5;
+				elements.castBarOuter.lineStyle(2, 0xffffff, 1);
+				elements.castBarOuter.drawRect(0, 0, 700, 40);
+				elements.castBarOuter.x = 5;
+				elements.castBarOuter.y = 5;
+				
+				
+				elements.castBarInner.beginFill(0x0);
+				elements.castBarInner.drawRect(0, 0, 695, 32);
+				elements.castBar.addChild(elements.castBarInner);
+				elements.castBarInner.x = 4;
+				elements.castBarInner.y = 4;
+			}
+			
+			function updatePlayer(x, y) {
+				elements.player.x = x;
+				elements.player.y = y;
+			}
+			
+			/* INTERACTION FUNCTIONS */
+			function bindInputs() {
+				container.eventMode = 'static';
+				container.on('pointerdown', handlePointer);
+				container.on('pointermove', handlePointer);
+				container.on('pointerup', handlePointer);
+			}
+			bindInputs();
+			
+			function handlePointer(e) {
+				if (e.type == 'pointerdown') {
+					moving = true;
+				} else if (e.type == 'pointerup') {
+					moving = false;
+				}
+				
+				if (!movementActive || !moving) { return; }
+				
+				var pos = e.data.global;
+				
+				if (pos.x >= 0 && pos.x <= 800 && pos.y >= 0+offset && pos.y <= 600+offset) {
+					updatePlayer(pos.x, pos.y-offset);
+				}
+			}
+			
+			function checkCorrect(a, b) {
+				var rightX = false;
+				var rightY = false;
+					
+					
+				if (a >= 0 && a <= 800 && b >= 0 && b <= 600) {
+					console.log(a + ", " + b);
+					
+					rightX = a >= columns[safeRange[0]][0] && a <= columns[safeRange[0]][1] ? true : false;
+					rightY = b >= rows[safeRange[1]][0] + offset && b <= rows[safeRange[1]][1] + offset ? true : false;
+					
+					if (rightX && rightY) {
+						return "Correct";
+					}
+					else {
+						return "Incorrect";
+					}
+				}
+			}
+			
+			/* --- MISC CONVENIENCE FUNCTIONS --- */
+			function create2DArray(rows) {
+				var arr = [];
+				for (let i = 0; i < rows; i++) { arr[i] = []; }
+				return arr;	
+			}
+			
+			function rand(min, max) {
+				var offset = min;
+				var range = (max - min) + 1;
+				
+				var randomNumber = Math.floor(Math.random() * range) + offset;
+				return randomNumber;
+			}
+			
+			function getTime() {
+				var now = +new Date();
+				return now - startTime;
+			}
+			
+			/* SETUP */
+			
+			
+			function start() {
+				if (elements.player != null && !inRound) { 
+					elements.player.destroy(); 
+				}
+				else { document.getElementById("start_button").innerHTML = "Restart"; }
+				
+				if (!inRound) {
+					inRound = true;
+					startTime = +new Date();
+					elements.castText.text = "The Classical Concepts";
+					elements.castText.visible = true;
+					phase = 'c';
+					drawCastBar();
+					setTimeout(drawStartingPos, 7000);
+					setTimeout(pantaTimer, 14000);
+					setTimeout(roundEnd, 22000);
+					console.log(getTime());
+				}
+				
+			}
+			
+			function pantaTimer() {
+				phase = 'p';
+				elements.castText.text = "Panta Rhei";
+				elements.castBarInner.beginFill(0x0);
+				elements.castBarInner.drawRect(0, 0, 695, 32);
+				console.log(getTime());
+			}
+			
+			app.ticker.add(onTick);
+			function onTick(delta) {
+				roundUpdate(delta);
+			}
+			
+			function roundUpdate(delta) {
+			
+				time = getTime();
+				//var timeInSeconds = Math.floor(time / 1000);
+				//if (inRound) { document.getElementById("timer").innerHTML = "Timer: " + timeInSeconds; }
+				
+				elements.castBarInner.beginFill(0xffffff);
+				var c_width = Math.floor((time) * 700 / 7000);
+				var p_width = Math.floor((time - 14000) * 700 / 7000);
+				if (phase == 'p' && p_width <= 694) {
+					elements.castBarInner.drawRect(0, 0, p_width, 32);
+				}
+				if (phase == 'c' && c_width <= 694) {
+					elements.castBarInner.drawRect(0, 0, c_width, 32);
+				}
+			}
+			
+			function roundEnd() {
+				movementActive = false;
+				elements.castText.text = checkCorrect(elements.player.x, elements.player.y+offset);
+				inRound = false;
+			}
+			
+		</script>
+	</body>
+	
+  
+</html>
